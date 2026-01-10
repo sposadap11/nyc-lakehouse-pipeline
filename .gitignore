@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.DS_Store
+.env
+.vscode/
+.idea/
+*.parquet
+*.csv
+asociated_docs/
+*.txt
