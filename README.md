@@ -33,4 +33,88 @@ Los procesos deben ejecutarse de manera secuencial para mantener la integridad d
 3. **Notebook 03_Gold**: Genera los agregados finales para el análisis de negocio.
 
 ---
+
+## Consideraciones CDC (Change Data Capture) y Gobierno de Datos
+
+### Change Data Capture (CDC)
+
+El Change Data Capture es un patrón de diseño que permite identificar y capturar los cambios incrementales en los datos de origen, en lugar de reprocesar el conjunto completo en cada ejecución. Su implementación es fundamental para sistemas de producción que manejan grandes volúmenes de información y requieren eficiencia en tiempos de procesamiento.
+
+#### Estrategia de Incrementalidad Propuesta
+
+Para este pipeline, se propone la siguiente estrategia de manejo de cambios:
+
+1. **Reprocesos (Backfills)**: Se utilizaría particionamiento por fecha (`fecha_viaje`) combinado con el modo de escritura `replaceWhere` de Delta Lake. Esto permite reprocesar únicamente las particiones afectadas sin necesidad de recargar todo el histórico. Ejemplo de implementación:
+
+   ```python
+   df.write.format("delta") \
+       .mode("overwrite") \
+       .option("replaceWhere", "fecha_viaje >= '2025-01-15' AND fecha_viaje <= '2025-01-20'") \
+       .save(ruta_silver)
+   ```
+
+2. **Llegadas Tardías (Late Arriving Data)**: Los registros que llegan después del cierre de un período se manejarían mediante una columna de `_processing_time` adicional. Al detectar datos con `pickup_datetime` anterior al último corte procesado, se ejecutaría un micro-batch de actualización usando la operación `MERGE`:
+
+   ```python
+   deltaTable.alias("target").merge(
+       nuevos_datos.alias("source"),
+       "target.trip_key = source.trip_key"
+   ).whenMatchedUpdateAll().whenNotMatchedInsertAll().execute()
+   ```
+
+3. **Duplicados**: La generación de una llave única (`trip_key`) mediante hash SHA-256 de campos inmutables garantiza la idempotencia. Al utilizar `MERGE` con esta llave, los registros duplicados simplemente actualizan el existente sin generar filas adicionales.
+
+4. **Versionado de Datos**:
+   - **Append**: Para datos de solo inserción (logs, eventos) donde no se esperan modificaciones.
+   - **Merge (Upsert)**: Para datos maestros o dimensiones que pueden cambiar (conductores, zonas).
+   - **Soft Deletes**: En lugar de eliminar físicamente, se agrega una columna `_is_deleted` con valor booleano. Esto preserva el histórico y permite auditorías.
+   - **Control de Snapshots**: Delta Lake mantiene automáticamente un historial de versiones mediante su Transaction Log. Se puede acceder a versiones anteriores con `df.read.format("delta").option("versionAsOf", 5).load(path)`.
+
+### Gobierno de Datos y Seguridad
+
+El gobierno de datos establece las políticas, procesos y estándares que aseguran la calidad, seguridad y disponibilidad de la información. En una arquitectura Lakehouse empresarial, esto se implementa en múltiples capas.
+
+#### Control de Accesos por Capa
+
+Se propone un modelo de permisos basado en el principio de menor privilegio:
+
+| Capa | Perfil de Acceso | Justificación |
+|------|------------------|---------------|
+| Bronze | Solo ingenieros de datos | Datos crudos, potencialmente sensibles o con errores |
+| Silver | Ingenieros de datos + Analistas senior | Datos validados pero aún granulares |
+| Gold | Analistas, científicos de datos, BI | Datos agregados y listos para consumo |
+
+En Unity Catalog, esto se implementa mediante:
+
+```sql
+GRANT SELECT ON SCHEMA gold TO `grupo_analistas`;
+GRANT ALL PRIVILEGES ON SCHEMA bronze TO `grupo_ingenieria`;
+```
+
+#### Separación de Entornos
+
+Para garantizar estabilidad en producción, se recomienda la siguiente estructura:
+
+- **Desarrollo (dev)**: Bucket S3 separado (`s3://datalake-nyc-dev/`), catálogo de Unity Catalog dedicado. Permite experimentación sin riesgo.
+- **QA/Staging**: Réplica de la estructura de producción con un subconjunto de datos. Se ejecutan pruebas de regresión antes de promover cambios.
+- **Producción (prod)**: Entorno controlado con pipelines automatizados, monitoreo activo y políticas de retención.
+
+#### Auditoría de Accesos
+
+Unity Catalog registra automáticamente todas las operaciones de lectura y escritura en las tablas. Adicionalmente, se pueden implementar:
+
+- **Logs de Acceso en S3**: Habilitando Server Access Logging en el bucket para rastrear operaciones a nivel de objeto.
+- **Audit Logs de Databricks**: Exportación de eventos de workspace hacia un sistema de monitoreo centralizado (CloudWatch, Datadog).
+
+#### Trazabilidad de Transformaciones (Lineage)
+
+Delta Lake y Unity Catalog proporcionan lineage automático que permite visualizar:
+
+- Qué tablas alimentan a otras (dependencias upstream/downstream).
+- Qué transformaciones se aplicaron en cada etapa.
+- Cuándo y por quién fue modificada una tabla.
+
+Esto se consulta directamente desde el Catalog Explorer de Databricks o mediante la API de Unity Catalog.
+
+---
 **Desarrollado por Sebastian Posada**
