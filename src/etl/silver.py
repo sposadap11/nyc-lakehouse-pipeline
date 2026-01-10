@@ -4,16 +4,14 @@ from delta.tables import DeltaTable
 from src.common import config
 
 def transform_silver(spark: SparkSession):
-    """
-    Standardizes data, applies quality rules, and performs idempotent MERGE into Silver.
-    """
+    # Validación básica de que la capa anterior existe
     if not DeltaTable.isDeltaTable(spark, config.BRONZE_PATH):
-        raise Exception("Bronze table not found. Run Bronze ingestion first.")
+        raise Exception("Error: No se encontró la capa Bronze. Ejecuta la ingesta primero.")
 
-    # Read from Bronze
+    # Lectura de datos desde la capa Bronze
     df_bronze = spark.read.format("delta").load(config.BRONZE_PATH)
     
-    # Normalization and Transformation
+    # Transformación y normalización de columnas de fecha y distancia
     df_silver = df_bronze.select(
         "*",
         F.to_timestamp(config.PICKUP_COL).alias("pickup_ts"),
@@ -21,20 +19,19 @@ def transform_silver(spark: SparkSession):
         F.col(config.DISTANCE_COL).cast("double").alias("trip_distance")
     )
     
-    # Derived columns
+    # Cálculo de duración y fecha del viaje para particionamiento
     df_silver = df_silver.withColumn("trip_date", F.to_date("pickup_ts")) \
                          .withColumn("trip_duration_sec", 
                                      F.unix_timestamp("dropoff_ts") - F.unix_timestamp("pickup_ts"))
     
-    # DQ Rules
+    # Filtros de calidad de datos
     df_silver = df_silver.filter(
         (F.col("pickup_ts").isNotNull()) &
         (F.col("trip_duration_sec") > 0) &
         (F.col("trip_distance") >= 0)
     )
     
-    # Generate technical ID (Idempotency Key)
-    # Using stable business columns to detect duplicates across loads
+    # Generación de llave única para asegurar idempotencia (evitar duplicados)
     df_silver = df_silver.withColumn("trip_key", F.sha2(F.concat_ws("|", 
         F.col("hvfhs_license_num"), 
         F.col("dispatching_base_num"), 
@@ -42,10 +39,12 @@ def transform_silver(spark: SparkSession):
         F.col("PULocationID")
     ), 256))
 
-    # Idempotent Write (MERGE)
+    # Lógica de MERGE para mantener la integridad de la capa Silver
     if not DeltaTable.isDeltaTable(spark, config.SILVER_PATH):
+        # Primera carga de la tabla
         df_silver.write.format("delta").partitionBy("trip_date").save(config.SILVER_PATH)
     else:
+        # Actualización de registros existentes o inserción de nuevos (Upsert)
         silver_table = DeltaTable.forPath(spark, config.SILVER_PATH)
         silver_table.alias("target").merge(
             df_silver.alias("source"),
@@ -54,14 +53,14 @@ def transform_silver(spark: SparkSession):
          .whenNotMatchedInsertAll() \
          .execute()
     
-    # Optimization: ZORDER (Runs if compatible environment)
+    # Optimización física de los datos con Z-Order para acelerar consultas por fecha
     try:
         spark.sql(f"OPTIMIZE delta.`{config.SILVER_PATH}` ZORDER BY (trip_date)")
-        print("Optimization ZORDER BY (trip_date) completed.")
+        print("Optimización ZORDER BY (trip_date) completada.")
     except Exception as e:
-        print(f"Optimization skipped or not supported: {e}")
+        print(f"Optimización saltada o no soportada en este entorno: {e}")
 
-    print(f"Silver layer updated at {config.SILVER_PATH}")
+    print(f"Capa Silver actualizada exitosamente en {config.SILVER_PATH}")
 
 if __name__ == "__main__":
     spark = SparkSession.builder.appName("SilverTransformation") \

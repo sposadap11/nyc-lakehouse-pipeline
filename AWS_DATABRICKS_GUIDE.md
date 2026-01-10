@@ -39,18 +39,28 @@ En lugar de subir archivos sueltos, conectaremos tu Git.
    git add .
    git commit -m "Initial commit: Cloud-Native Lakehouse on AWS Databricks"
    # Crea el repo en GitHub.com con el nombre 'nyc-lakehouse-pipeline'
-   git remote add origin https://github.com/sebastian_posada/nyc-lakehouse-pipeline.git
+   git remote add origin https://github.com/sposadap11/nyc-lakehouse-pipeline.git
    git push -u origin master
    ```
 
 ### Paso 2: Ejecutar en Databricks
 
 1. En Databricks, ve a **Workspace** -> **Users** -> Tu usuario.
-2. Clic derecho -> **Import** -> **From Git** (o File si Git falla en el Trial).
-3. **Opción A (Git):** Pega la URL de tu repo.
-4. **Opción B (Manual - Más rápido si Git da problemas):**
-   - Crea 3 Notebooks: `01_Bronze`, `02_Silver`, `03_Gold`.
-   - Copia y pega el código de `src/etl/bronze.py`, `silver.py` y `gold.py` respectivamente.
+
+### Paso 2: Ejecutar en Databricks
+
+1. En Databricks, ve a **Workspace** -> **Users** -> Tu usuario.
+2. Clic derecho -> **Import** -> selecciona **URL**.
+3. **Copia y pega estas URLs exactas (una por una):**
+
+- **Libro 01_Bronze:**
+    `https://raw.githubusercontent.com/sposadap11/nyc-lakehouse-pipeline/master/Databricks_01_Bronze.py`
+- **Libro 02_Silver:**
+    `https://raw.githubusercontent.com/sposadap11/nyc-lakehouse-pipeline/master/Databricks_02_Silver.py`
+- **Libro 03_Gold:**
+    `https://raw.githubusercontent.com/sposadap11/nyc-lakehouse-pipeline/master/Databricks_03_Gold.py`
+
+*Nota: Databricks convertirá automáticamente estos archivos .py en notebooks funcionales.*
 
 ### Paso 3: Ejecución Secuencial
 
