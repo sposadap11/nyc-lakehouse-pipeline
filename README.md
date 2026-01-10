@@ -17,6 +17,24 @@ El repositorio está organizado siguiendo estándares de ingeniería de datos pa
 - **src/etl/**: Contiene el núcleo de la lógica de procesamiento encapsulado en módulos de Python (`bronze.py`, `silver.py`, `gold.py`). Esta estructura facilita la reutilización de código y la implementación de pruebas unitarias o procesos de CI/CD.
 - **Raíz (01_Bronze.py, 02_Silver.py, 03_Gold.py)**: Scripts autocontenidos diseñados específicamente para ser importados y ejecutados como Notebooks en Databricks. Estos archivos invocan la lógica interna pero permiten una ejecución rápida y directa en el entorno de computación distribuida.
 
+### Estructura de Archivos
+
+```text
+.
+├── 01_Bronze.py           # Notebook de Ingesta
+├── 02_Silver.py           # Notebook de Transformación
+├── 03_Gold.py             # Notebook de KPIs
+├── README.md              # Documentación técnica
+├── src/                   # Código modular (Core)
+│   ├── common/
+│   │   └── config.py      # Configuraciones globales
+│   └── etl/
+│       ├── bronze.py      # Lógica Capa Bronze
+│       ├── silver.py      # Lógica Capa Silver
+│       └── gold.py        # Lógica Capa Gold
+└── arquitectura_nyc.drawio # Diagrama editable
+```
+
 ## Requisitos y Configuración de Clúster
 
 Para la ejecución exitosa del pipeline en un entorno de Databricks Serverless, es imperativo configurar el acceso a los datos mediante Unity Catalog:
