@@ -1,32 +1,29 @@
-from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
-import uuid
-from src.common import config
+# Capa Bronze: Ingesta inicial
+# Este módulo se encarga de mover los datos de la zona de aterrizaje (Landing/Raw) 
+# a Delta Lake con metadata técnica para trazabilidad.
 
-def ingest_bronze(spark: SparkSession):
-    # Leo los datos raw desde la ruta configurada en config.py
-    print(f"Iniciando ingesta desde: {config.DATASET_PATH}...")
+from pyspark.sql import functions as F
+from src.common import config
+import uuid
+
+def ingest_bronze(spark):
+    print(f"Leyendo datos crudos desde {config.RAW_PATH}...")
     
-    # Cargo los archivos parquet
-    df_raw = spark.read.parquet(config.DATASET_PATH)
+    # Lectura de los archivos parquet originales
+    df_raw = spark.read.parquet(config.RAW_PATH)
     
-    # Agrego metadata técnica para trazabilidad
-    # Uso _metadata.file_path para compatibilidad con Unity Catalog
+    # Agregamos metadata técnica para auditoría
+    # Nota: Usamos _metadata.file_path para compatibilidad total con Unity Catalog
     df_bronze = df_raw.select(
         "*",
-        F.current_timestamp().alias("_ingest_ts"),
-        F.col("_metadata.file_path").alias("_source_file"),
-        F.lit(str(uuid.uuid4())).alias("_load_id")
+        F.current_timestamp().alias("fecha_ingesta"),
+        F.col("_metadata.file_path").alias("archivo_origen"),
+        F.lit(str(uuid.uuid4())).alias("id_lote")
     )
     
-    # Guardo en la capa Bronze usando el formato Delta
-    df_bronze.write.format("delta").mode("overwrite").save(config.BRONZE_PATH)
-    print(f"Capa Bronze actualizada exitosamente en {config.BRONZE_PATH}")
-
-if __name__ == "__main__":
-    # Configuración básica de Spark para Delta
-    spark = SparkSession.builder.appName("BronzeIngestion") \
-        .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
-        .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
-        .getOrCreate()
-    ingest_bronze(spark)
+    # Guardado en formato Delta optimizado (overwrite para pruebas)
+    df_bronze.write.format("delta") \
+        .mode("overwrite") \
+        .save(config.BRONZE_PATH)
+    
+    print(f"Bronze listo. Registros cargados: {df_bronze.count()}")

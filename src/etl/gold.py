@@ -1,35 +1,34 @@
-from pyspark.sql import SparkSession
+# Capa Gold: Agregación de Negocio (KPIs)
+# Resumen diario para analistas y toma de decisiones.
+
 from pyspark.sql import functions as F
 from src.common import config
 
-def calculate_gold(spark: SparkSession):
-    # Carga de la data ya procesada desde la capa Silver
-    df_silver = spark.read.format("delta").load(config.SILVER_PATH)
+def calculate_gold(spark):
+    print("Calculando indicadores Gold...")
     
-    # Cálculo de los ingresos totales por viaje (Revenue)
-    revenue_expr = sum([F.coalesce(F.col(c), F.lit(0)) for c in config.REVENUE_COLS])
-    df_silver = df_silver.withColumn("trip_revenue", revenue_expr)
+    # Carga desde Silver
+    df = spark.read.format("delta").load(config.SILVER_PATH)
     
-    # Agregación para obtener los KPIs diarios
-    df_gold = df_silver.groupBy("trip_date").agg(
-        F.count("trip_key").alias("total_trips"),
-        F.sum("trip_revenue").alias("total_revenue"),
-        F.avg("trip_duration_sec").alias("avg_trip_duration_sec"),
-        F.avg("trip_distance").alias("avg_trip_distance")
-    )
+    # Definición de Revenue total (suma de componentes monetarios)
+    columnas_ingreso = [
+        "base_passenger_fare", "tolls", "tips", 
+        "sales_tax", "congestion_surcharge", "airport_fee"
+    ]
+    total_revenue_expr = sum([F.coalesce(F.col(c), F.lit(0)) for c in columnas_ingreso])
     
-    # KPI adicional: Viajes promedio por hora
-    df_gold = df_gold.withColumn("avg_trips_per_hour", F.col("total_trips") / 24)
+    # Agregación diaria
+    df_gold = df.withColumn("ingreso_viaje", total_revenue_expr) \
+        .groupBy("fecha_viaje") \
+        .agg(
+            F.count("trip_key").alias("total_viajes"),
+            F.sum("ingreso_viaje").alias("ingreso_total"),
+            F.avg("duracion_seg").alias("promedio_duracion_seg")
+        )
     
-    # Almacenamiento de los KPIs finales en la capa Gold
-    df_gold.write.format("delta").mode("overwrite").save(config.GOLD_PATH)
+    # Guardado final de KPIs
+    df_gold.write.format("delta") \
+        .mode("overwrite") \
+        .save(config.GOLD_PATH)
     
-    print(f"Capa Gold de KPIs actualizada exitosamente en {config.GOLD_PATH}")
-    df_gold.show(5)
-
-if __name__ == "__main__":
-    spark = SparkSession.builder.appName("GoldKPIs") \
-        .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
-        .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
-        .getOrCreate()
-    calculate_gold(spark)
+    print("Indicadores calculados exitosamente.")
