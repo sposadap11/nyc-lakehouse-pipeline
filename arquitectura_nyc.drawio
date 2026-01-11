@@ -1,40 +1,79 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<mxfile host="app.diagrams.net" modified="2024-01-10T13:10:00.000Z" agent="Antigravity AI" version="21.0.0" type="device">
-  <diagram id="NYC-Architect" name="AWS Databricks Lakehouse">
+<mxfile host="app.diagrams.net" modified="2024-01-10T14:05:00.000Z" agent="Antigravity AI" version="21.0.0" type="device">
+  <diagram id="NYC-Enterprise-Arch" name="NYC Lakehouse Enterprise">
     <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="L-AWS-S3" value="AWS S3 Bucket" style="swimlane;whiteSpace=wrap;html=1;startSize=23;" vertex="1" parent="1">
-          <mxGeometry x="40" y="80" width="720" height="280" as="geometry" />
+        
+        <!-- Background Layer -->
+        <mxCell id="g_env" value="Infraestructura de Datos (Nube AWS)" style="swimlane;whiteSpace=wrap;html=1;startSize=40;fillColor=#F8F9FA;strokeColor=#444444;dashed=1;fontStyle=1;fontSize=16;fontColor=#333333;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="20" y="40" width="840" height="680" as="geometry" />
         </mxCell>
-        <mxCell id="B-RAW" value="RAW (Landing Zone)&#xa;*.parquet" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;" vertex="1" parent="L-AWS-S3">
-          <mxGeometry x="40" y="80" width="160" height="120" as="geometry" />
+
+        <!-- S3 Container -->
+        <mxCell id="c_s3" value="Almacenamiento Persistente (S3 Buckets)" style="swimlane;whiteSpace=wrap;html=1;startSize=30;fillColor=#E3F2FD;strokeColor=#1565C0;fontStyle=1;arcSize=4;" vertex="1" parent="g_env">
+          <mxGeometry x="20" y="60" width="800" height="280" as="geometry" />
         </mxCell>
-        <mxCell id="B-BRONZE" value="BRONZE (Raw Delta)&#xa;Trazabilidad / Metadata" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="L-AWS-S3">
-          <mxGeometry x="280" y="80" width="160" height="120" as="geometry" />
+
+        <!-- Databricks Container -->
+        <mxCell id="c_db" value="Motor de Procesamiento (Databricks Serverless)" style="swimlane;whiteSpace=wrap;html=1;startSize=30;fillColor=#FFF3E0;strokeColor=#E65100;fontStyle=1;arcSize=4;" vertex="1" parent="g_env">
+          <mxGeometry x="20" y="360" width="800" height="300" as="geometry" />
         </mxCell>
-        <mxCell id="B-SILVER" value="SILVER (Refined)&#xa;Z-Order / Calidad" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="L-AWS-S3">
-          <mxGeometry x="520" y="80" width="160" height="120" as="geometry" />
+
+        <!-- Storage Nodes -->
+        <mxCell id="n_raw" value="&lt;b&gt;LANDING ZONE&lt;/b&gt;&lt;br/&gt;*.parquet (Raw)&lt;br/&gt;&lt;small&gt;Datos Crudos NYC&lt;/small&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="c_s3">
+          <mxGeometry x="30" y="80" width="160" height="140" as="geometry" />
         </mxCell>
-        <mxCell id="B-GOLD" value="GOLD (Business)&#xa;KPIs Agregados" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
-          <mxGeometry x="560" y="440" width="160" height="120" as="geometry" />
+
+        <mxCell id="n_bronze" value="&lt;b&gt;BRONZE LAYER&lt;/b&gt;&lt;br/&gt;Delta Lake Table&lt;br/&gt;&lt;small&gt;Trazabilidad y Auditoría&lt;/small&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#FFE0B2;strokeColor=#FB8C00;" vertex="1" parent="c_s3">
+          <mxGeometry x="290" y="80" width="160" height="140" as="geometry" />
         </mxCell>
-        <mxCell id="T-DATABRICKS" value="Databricks Serverless Compute" style="ellipse;shape=cloud;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
-          <mxGeometry x="40" y="440" width="440" height="120" as="geometry" />
+
+        <mxCell id="n_silver" value="&lt;b&gt;SILVER LAYER&lt;/b&gt;&lt;br/&gt;Delta Lake (Refined)&lt;br/&gt;&lt;small&gt;Z-Order &amp; Partitioning&lt;/small&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#E0F2F1;strokeColor=#00897B;" vertex="1" parent="c_s3">
+          <mxGeometry x="550" y="80" width="160" height="140" as="geometry" />
         </mxCell>
-        <mxCell id="E1" value="ETL 01" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="B-RAW" target="B-BRONZE">
+
+        <!-- Compute Nodes -->
+        <mxCell id="e_br" value="&lt;b&gt;Proceso Ingesta&lt;/b&gt;&lt;br/&gt;(01_Bronze.py)&lt;br/&gt;&lt;small&gt;Lectura S3 -&gt; Delta&lt;/small&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#1976D2;arcSize=12;" vertex="1" parent="c_db">
+          <mxGeometry x="20" y="60" width="180" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_sl" value="&lt;b&gt;Transformación&lt;/b&gt;&lt;br/&gt;(02_Silver.py)&lt;br/&gt;&lt;small&gt;Limpieza y Calidad&lt;/small&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#388E3C;arcSize=12;" vertex="1" parent="c_db">
+          <mxGeometry x="280" y="60" width="180" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_gd" value="&lt;b&gt;Agregación&lt;/b&gt;&lt;br/&gt;(03_Gold.py)&lt;br/&gt;&lt;small&gt;KPIs de Negocio&lt;/small&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#FBC02D;arcSize=12;" vertex="1" parent="c_db">
+          <mxGeometry x="540" y="60" width="180" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="u_cat" value="&lt;b&gt;UNITY CATALOG&lt;/b&gt;&lt;br/&gt;Seguridad y Gobernanza&lt;br/&gt;&lt;small&gt;Control de External Locations&lt;/small&gt;" style="shape=cloud;whiteSpace=wrap;html=1;fillColor=#E1BEE7;strokeColor=#8E24AA;fontStyle=1" vertex="1" parent="c_db">
+          <mxGeometry x="220" y="170" width="400" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- Secondary Storage Gold -->
+        <mxCell id="n_gold" value="&lt;b&gt;GOLD LAYER&lt;/b&gt;&lt;br/&gt;Tablas de KPIs&lt;br/&gt;&lt;small&gt;Listo para BI&lt;/small&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#FFF9C4;strokeColor=#FBC02D;" vertex="1" parent="c_db">
+          <mxGeometry x="630" y="175" width="120" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Connection Flows -->
+        <mxCell id="f1" value="Ingesta" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;strokeWidth=2;" edge="1" parent="c_s3" source="n_raw" target="n_bronze">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="E2" value="ETL 02" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="B-BRONZE" target="B-SILVER">
+        <mxCell id="f2" value="Transformación" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;strokeWidth=2;" edge="1" parent="c_s3" source="n_bronze" target="n_silver">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="E3" value="ETL 03" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="B-SILVER" target="B-GOLD">
+        
+        <mxCell id="f_exec1" value="Maneja" style="edgeStyle=elbowEdgeStyle;rounded=1;html=1;exitX=0.5;exitY=0;entryX=0.5;entryY=1;strokeColor=#1976D2;dashed=1;" edge="1" parent="g_env" source="e_br" target="n_bronze">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="UC" value="Unity Catalog (Gobernanza)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1" vertex="1" parent="1">
-          <mxGeometry x="320" y="40" width="180" height="30" as="geometry" />
+        <mxCell id="f_exec2" value="Optimiza" style="edgeStyle=elbowEdgeStyle;rounded=1;html=1;exitX=0.5;exitY=0;entryX=0.5;entryY=1;strokeColor=#388E3C;dashed=1;" edge="1" parent="g_env" source="e_sl" target="n_silver">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
+        <mxCell id="f_gold" value="Genera" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;strokeColor=#F57F17;strokeWidth=2;" edge="1" parent="c_db" source="e_gd" target="n_gold">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
       </root>
     </mxGraphModel>
   </diagram>
